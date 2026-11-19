@@ -1042,6 +1042,18 @@ h1 {
   gap: 13px;
 }
 
+.energy-chart-grid {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.energy-chart-card {
+  height: 520px;
+}
+
+.energy-combo-chart {
+  height: 450px;
+}
+
 .breakdown-grid {
   grid-template-columns: minmax(0, 1fr);
 }
@@ -1810,6 +1822,8 @@ h1 {
   .capex-plan-layout,
   .area-dashboard-grid,
   .spending-grid { grid-template-columns: 1fr; }
+  .energy-chart-card { height: 500px; }
+  .energy-combo-chart { height: 430px; }
   .capex-plan-trend-card { grid-column: 1; }
   .capex-project-card { grid-column: 1; grid-row: auto; min-height: 430px; }
   .capex-project-chart { height: 390px; }

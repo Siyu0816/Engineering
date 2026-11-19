@@ -294,11 +294,14 @@
           <article class="kpi-card accent-gold"><div class="kpi-label">天然气 <span>NATURAL GAS</span></div><div id="energy-gas" class="kpi-value">—</div><div class="kpi-foot">Head meter</div></article>
           <article class="kpi-card accent-violet"><div class="kpi-label">生产量 <span>PRODUCTION</span></div><div id="energy-production" class="kpi-value">—</div><div class="kpi-foot">CN18 Production Volume</div></article>
         </div>
-        <div class="chart-grid">
-          <article class="card chart-card full-card"><header class="card-header"><div><h2>能源消耗趋势</h2><p>Monthly steam, power and natural gas consumption</p></div></header><div id="energy-consumption-chart" class="chart chart-medium"></div></article>
-          <article class="card chart-card full-card"><header class="card-header"><div><h2>单位生产量能源强度</h2><p>Utility consumption per ton of reported production</p></div></header><div id="energy-intensity-chart" class="chart chart-medium"></div></article>
-          <article class="card chart-card"><header class="card-header"><div><h2>能源费用</h2><p>Monthly total utility cost from source workbook</p></div></header><div id="energy-cost-chart" class="chart chart-tall"></div></article>
-          <article class="card chart-card"><header class="card-header"><div><h2>生产量构成</h2><p>Production tonnage by area</p></div></header><div id="energy-production-chart" class="chart chart-tall"></div></article>
+        <div class="chart-grid energy-chart-grid">
+          <article class="card chart-card full-card energy-chart-card"><header class="card-header"><div><h2>Power/kwh</h2><p>by Month and Year</p></div></header><div id="energy-power-chart" class="chart energy-combo-chart"></div></article>
+          <article class="card chart-card full-card energy-chart-card"><header class="card-header"><div><h2>Natural Gas/m3</h2><p>by Month and Year</p></div></header><div id="energy-gas-chart" class="chart energy-combo-chart"></div></article>
+          <article class="card chart-card full-card energy-chart-card"><header class="card-header"><div><h2>Steam/ton</h2><p>by Month and Year</p></div></header><div id="energy-steam-chart" class="chart energy-combo-chart"></div></article>
+          <article class="card chart-card full-card energy-chart-card"><header class="card-header"><div><h2>Nitrogen/t</h2><p>by Month and Year</p></div></header><div id="energy-nitrogen-chart" class="chart energy-combo-chart"></div></article>
+          <article class="card chart-card full-card energy-chart-card"><header class="card-header"><div><h2>Domestic waste water/t</h2><p>by Month and Year</p></div></header><div id="energy-domestic-wastewater-chart" class="chart energy-combo-chart"></div></article>
+          <article class="card chart-card full-card energy-chart-card"><header class="card-header"><div><h2>Industry waste water/t</h2><p>by Month and Year</p></div></header><div id="energy-industry-wastewater-chart" class="chart energy-combo-chart"></div></article>
+          <article class="card chart-card full-card energy-chart-card"><header class="card-header"><div><h2>City water/m3</h2><p>by Month and Year</p></div></header><div id="energy-city-water-chart" class="chart energy-combo-chart"></div></article>
         </div>
       </section>
       <dialog id="detail-dialog" class="detail-dialog">

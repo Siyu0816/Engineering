@@ -60,6 +60,14 @@
     ["工单执行", "Work Order Performance"],
     ["每日工单", "Daily Work Orders"],
     ["能源使用", "Energy"],
+    ["电力/kwh", "Power/kwh"],
+    ["天然气/m3", "Natural Gas/m3"],
+    ["蒸汽/ton", "Steam/ton"],
+    ["氮气/t", "Nitrogen/t"],
+    ["生活污水/t", "Domestic waste water/t"],
+    ["工业废水/t", "Industry waste water/t"],
+    ["城市用水/m3", "City water/m3"],
+    ["按月份和年份", "by Month and Year"],
     ["工程部运营中心", "Engineering Department Operations Center"],
     ["维护、投资、可靠性与能源运营总览", "Maintenance, investment, reliability and energy overview"],
     ["维护成本、预算执行和工单构成", "Maintenance cost, budget performance and work-order mix"],
@@ -446,6 +454,7 @@
     language: "zh",
     currency: "CNY",
     year: ["2026"],
+    yearFilterTouched: false,
     capexPlanYear: "2026",
     month: [],
     scope: [],
@@ -907,6 +916,7 @@
       if (checkbox.value === "all" && !checkbox.checked && state[field].length === 0) {
         state[field] = [];
       }
+      if (field === "year") state.yearFilterTouched = true;
       state.selection = null;
       render();
     });
@@ -1087,6 +1097,7 @@
     }
     if (field === "year") {
       state.year = state.selection ? [String(value)] : [];
+      state.yearFilterTouched = true;
     }
     if (field === "month") {
       state.month = state.selection ? [String(value)] : [];
@@ -2079,6 +2090,227 @@
       matchesSelection(state.year, row.year) &&
       matchesSelection(state.month, row.month)
     ).sort((a, b) => a.year - b.year || a.month - b.month);
+  }
+
+  function renderEnergyUtilityChart(containerId, rows, config) {
+    const container = document.getElementById(containerId);
+    const years = [...new Set(rows.map(row => Number(row.year)))].sort((a, b) => a - b);
+    const chartRows = rows.filter(row => years.includes(Number(row.year)));
+    if (!chartRows.length) return drawEmpty(container);
+
+    const months = state.month.length
+      ? [...new Set(chartRows.map(row => Number(row.month)))].sort((a, b) => a - b)
+      : Array.from({ length: 12 }, (_, index) => index + 1);
+    const rowsByPeriod = new Map(chartRows.map(row => [`${row.year}-${row.month}`, row]));
+    const values = months.flatMap(month => years.map(year => {
+      const row = rowsByPeriod.get(`${year}-${month}`);
+      return row ? Number(row[config.key]) || 0 : 0;
+    }));
+    const intensities = months.flatMap(month => {
+      return years.flatMap(year => {
+      const row = rowsByPeriod.get(`${year}-${month}`);
+        return row && Number(row.production) > 0 ? [Number(row[config.intensityKey]) || 0] : [];
+      });
+    });
+    const maximumConsumption = Math.max(0, ...values) * 1.12 || 1;
+    const minimumIntensityValue = intensities.length ? Math.min(...intensities) : 0;
+    const maximumIntensityValue = intensities.length ? Math.max(...intensities) : 0;
+    const intensitySpan = maximumIntensityValue - minimumIntensityValue;
+    const intensityPadding = intensitySpan * 0.08 || Math.max(maximumIntensityValue * 0.08, 0.00000001);
+    const minimumIntensity = Math.max(0, minimumIntensityValue - intensityPadding);
+    const maximumIntensity = maximumIntensityValue + intensityPadding || 1;
+    const intensityRange = maximumIntensity - minimumIntensity || 1;
+    const width = Math.max(container.clientWidth - 14, 300);
+    const height = Math.max(container.clientHeight - 74, 190);
+    const left = 58;
+    const right = 62;
+    const top = 18;
+    const bottom = 34;
+    const plotBottom = height - bottom;
+    const totalPlotHeight = plotBottom - top;
+    const lineTop = top;
+    const lineHeight = Math.round(totalPlotHeight * 0.5);
+    const sectionGap = Math.max(34, Math.round(totalPlotHeight * 0.1));
+    const barTop = lineTop + lineHeight + sectionGap;
+    const barHeight = plotBottom - barTop;
+    const plotWidth = width - left - right;
+    const categoryWidth = plotWidth / months.length;
+    const barWidth = Math.min(24, categoryWidth * 0.68 / years.length);
+    const colorPalette = ["#cbd3eb", "#403a9c", "#f26736", "#258c77", "#7b637e", "#c19a2b"];
+    const yearColors = Object.fromEntries(years.map((year, index) => [
+      year,
+      ({ 2024: "#cbd3eb", 2025: "#403a9c", 2026: "#f26736" })[year] || colorPalette[index % colorPalette.length]
+    ]));
+    const lineColors = Object.fromEntries(years.map((year, index) => [
+      year,
+      ({ 2024: "#7187bd", 2025: "#19145f", 2026: "#d94d20" })[year] || colorPalette[index % colorPalette.length]
+    ]));
+    const localizedTitle = translateText(config.title);
+    const svg = createSvg(container, width, height, config.title);
+    svg.style.width = "100%";
+    svg.style.height = `${height}px`;
+
+    for (let tick = 0; tick <= 6; tick++) {
+      const ratio = 1 - tick / 6;
+      const lineY = lineTop + lineHeight * (tick / 6);
+      addGrid(svg, left, lineY, width - right);
+      const intensity = minimumIntensity + intensityRange * ratio;
+      svg.append(svgElement("text", {
+        x: width - right + 8,
+        y: lineY + 3,
+        "text-anchor": "start",
+        class: "svg-category"
+      }, formatEnergyIntensity(intensity, intensityRange / 6)));
+    }
+
+    for (let tick = 0; tick <= 4; tick++) {
+      const ratio = 1 - tick / 4;
+      const barY = barTop + barHeight * (tick / 4);
+      addGrid(svg, left, barY, width - right);
+      const consumption = maximumConsumption * ratio;
+      svg.append(svgElement("text", {
+        x: left - 8,
+        y: barY + 3,
+        "text-anchor": "end",
+        class: "svg-category"
+      }, formatEnergyAxisValue(consumption)));
+    }
+
+    const monthFormatter = new Intl.DateTimeFormat(state.language === "zh" ? "zh-CN" : "en-US", {
+      month: "short"
+    });
+    const lineLayers = [];
+    years.forEach((year, yearIndex) => {
+      months.forEach((month, monthIndex) => {
+        const row = rowsByPeriod.get(`${year}-${month}`);
+        const value = row ? Number(row[config.key]) || 0 : 0;
+        if (value <= 0) return;
+        const center = left + categoryWidth * (monthIndex + 0.5);
+        const x = center + (yearIndex - (years.length - 1) / 2) * barWidth;
+        const valueHeight = (value / maximumConsumption) * barHeight;
+        const bar = svgElement("rect", {
+          x: x - barWidth / 2,
+          y: barTop + barHeight - valueHeight,
+          width: barWidth,
+          height: valueHeight,
+          rx: 2,
+          fill: yearColors[year],
+          class: "svg-bar"
+        });
+        addTooltip(bar, `${localizedTitle} · ${monthFormatter.format(new Date(2026, month - 1, 1))} · ${year}`, value,
+          formatEnergyTooltip);
+        svg.append(bar);
+      });
+
+      let path = "";
+      let hasPreviousPoint = false;
+      const linePoints = [];
+      months.forEach((month, monthIndex) => {
+        const row = rowsByPeriod.get(`${year}-${month}`);
+        if (!row || Number(row.production) <= 0) {
+          hasPreviousPoint = false;
+          return;
+        }
+        const value = Number(row[config.intensityKey]) || 0;
+        const point = {
+          x: left + categoryWidth * (monthIndex + 0.5),
+          y: lineTop + lineHeight - ((value - minimumIntensity) / intensityRange) * lineHeight
+        };
+        path += `${hasPreviousPoint ? "L" : "M"}${point.x},${point.y} `;
+        hasPreviousPoint = true;
+        linePoints.push({ ...point, month, value });
+      });
+      if (path) lineLayers.push({ year, path: path.trim(), points: linePoints });
+    });
+
+    lineLayers.forEach(({ year, path, points }) => {
+      svg.append(svgElement("path", {
+        d: path,
+        fill: "none",
+        stroke: "#fff",
+        "stroke-width": 4.5,
+        "stroke-linecap": "round",
+        "stroke-linejoin": "round"
+      }));
+      svg.append(svgElement("path", {
+        d: path,
+        fill: "none",
+        stroke: lineColors[year],
+        "stroke-width": 2.4,
+        "stroke-linecap": "round",
+        "stroke-linejoin": "round"
+      }));
+      points.forEach(point => {
+        const marker = svgElement("circle", {
+          cx: point.x,
+          cy: point.y,
+          r: 3.2,
+          fill: lineColors[year],
+          stroke: "#fff",
+          "stroke-width": 1.2,
+          class: "svg-point"
+        });
+        const intensityLabel = state.language === "zh" ? `${localizedTitle} 每 kg ${year}` : `${localizedTitle} per KG ${year}`;
+        addTooltip(marker, `${intensityLabel} · ${monthFormatter.format(new Date(2026, point.month - 1, 1))}`,
+          point.value, formatEnergyTooltip);
+        svg.append(marker);
+      });
+    });
+
+    months.forEach((month, index) => {
+      const x = left + categoryWidth * (index + 0.5);
+      svg.append(svgElement("text", {
+        x,
+        y: height - 8,
+        "text-anchor": "middle",
+        class: "svg-category"
+      }, monthFormatter.format(new Date(2026, month - 1, 1))));
+    });
+
+    const legend = element("div", { class: "chart-legend multi-series-legend" });
+    for (const year of years) {
+      const entry = element("span", { class: "legend-item" });
+      entry.append(element("i", {
+        class: "legend-swatch column-swatch",
+        style: `background:${yearColors[year]}`
+      }));
+      entry.append(document.createTextNode(String(year)));
+      legend.append(entry);
+    }
+    for (const year of years) {
+      const entry = element("span", { class: "legend-item" });
+      entry.append(element("i", {
+        class: "legend-swatch",
+        style: `background:transparent;border-top:2px solid ${lineColors[year]};border-radius:0;height:0;width:14px`
+      }));
+      entry.append(document.createTextNode(state.language === "zh"
+        ? `${localizedTitle} 每 kg ${year}`
+        : `${localizedTitle} per KG ${year}`));
+      legend.append(entry);
+    }
+    container.insertBefore(legend, svg);
+  }
+
+  function formatEnergyAxisValue(value) {
+    if (value >= 1000000) return `${(value / 1000000).toFixed(1)}M`;
+    if (value >= 1000) return `${(value / 1000).toFixed(value >= 10000 ? 0 : 1)}K`;
+    return numberFormat.format(Math.round(value));
+  }
+
+  function formatEnergyIntensity(value, interval) {
+    const maximumFractionDigits = interval > 0
+      ? Math.min(8, Math.max(0, Math.ceil(-Math.log10(interval)) + 1))
+      : 8;
+    return new Intl.NumberFormat(state.language === "zh" ? "zh-CN" : "en-US", {
+      maximumFractionDigits
+    }).format(value);
+  }
+
+  function formatEnergyTooltip(value) {
+    const maximumFractionDigits = value >= 1000 ? 2 : value >= 0.1 ? 4 : 8;
+    return new Intl.NumberFormat(state.language === "zh" ? "zh-CN" : "en-US", {
+      maximumFractionDigits
+    }).format(value);
   }
 
   function getSelectedWorkOrderStatus() {
@@ -3308,40 +3540,23 @@
     setKpiText("energy-power", numberFormat.format(Math.round(sum(rows, "power"))));
     setKpiText("energy-gas", numberFormat.format(Math.round(sum(rows, "naturalGas"))));
     setKpiText("energy-production", numberFormat.format(Math.round(sum(rows, "production"))));
-    const chartRows = rows.map(row => ({
-      ...row,
-      label: monthLabel(row),
-      axisLabel: String(row.month).padStart(2, "0")
-    }));
-    renderSeriesChart("energy-consumption-chart", chartRows, [
-      { key: "steam", label: "Steam", color: "#5149ef" },
-      { key: "power", label: "Power", color: "#edb743" },
-      { key: "naturalGas", label: "Natural gas", color: "#8d78d4" }
-    ], "蒸汽、电力和天然气月度消耗", { indexed: true });
-    renderSeriesChart("energy-intensity-chart", chartRows, [
-      { key: "steamPerKg", label: "Steam / production ton", color: "#5149ef" },
-      { key: "powerPerKg", label: "Power / production ton", color: "#edb743" },
-      { key: "naturalGasPerKg", label: "Gas / production ton", color: "#8d78d4" }
-    ], "单位生产量能源强度", { indexed: true });
-    renderBars("energy-cost-chart", chartRows.map(row => ({
-      label: row.label,
-      key: row.label,
-      value: row.totalCost
-    })), null, { color: "#5149ef", label: "月度能源费用" });
-    const productionRows = data.production.filter(row =>
-      matchesSelection(state.year, row.year) &&
-      matchesSelection(state.month, row.month)
+    const defaultChartYears = new Set([2024, 2025, 2026]);
+    const chartRows = data.energy.filter(row =>
+      matchesSelection(state.month, row.month) &&
+      (state.yearFilterTouched
+        ? matchesSelection(state.year, row.year)
+        : defaultChartYears.has(Number(row.year)))
     );
-    const productionByArea = ["LC", "OC", "FC", "SD"].map(area => ({
-      label: area,
-      value: sum(productionRows, area)
-    }));
-    renderBars("energy-production-chart", productionByArea, null, {
-      color: "#6963d9",
-      label: "生产量 by area",
-      formatValue: value => numberFormat.format(Math.round(value)),
-      formatTooltip: value => `${numberFormat.format(Math.round(value))} t`
-    });
+    const charts = [
+      ["energy-power-chart", { key: "power", intensityKey: "powerPerKg", title: "Power/kwh" }],
+      ["energy-gas-chart", { key: "naturalGas", intensityKey: "naturalGasPerKg", title: "Natural Gas/m3" }],
+      ["energy-steam-chart", { key: "steam", intensityKey: "steamPerKg", title: "Steam/ton" }],
+      ["energy-nitrogen-chart", { key: "nitrogen", intensityKey: "nitrogenPerKg", title: "Nitrogen/t" }],
+      ["energy-domestic-wastewater-chart", { key: "domesticWastewater", intensityKey: "domesticWastewaterPerKg", title: "Domestic waste water/t" }],
+      ["energy-industry-wastewater-chart", { key: "industryWastewater", intensityKey: "industryWastewaterPerKg", title: "Industry waste water/t" }],
+      ["energy-city-water-chart", { key: "cityWater", intensityKey: "cityWaterPerKg", title: "City water/m3" }]
+    ];
+    charts.forEach(([containerId, config]) => renderEnergyUtilityChart(containerId, chartRows, config));
   }
 
   function render() {
@@ -3485,6 +3700,7 @@
 
   function resetAllFilters() {
     state.year = ["2026"];
+    state.yearFilterTouched = false;
     state.month = [];
     state.scope = [];
     state.costType = [];

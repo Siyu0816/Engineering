@@ -6,7 +6,7 @@ import pandas as pd
 
 
 PROJECT_DIR = Path(__file__).resolve().parent
-SOURCE_DIR = PROJECT_DIR.parent
+SOURCE_DIR = PROJECT_DIR / "data"
 OUTPUT_FILE = PROJECT_DIR / "dashboard-data.js"
 MONTHS = {
     name.upper(): index
@@ -501,6 +501,8 @@ def read_energy_data():
                 "power": number(row.iloc[11]),
                 "cda": number(row.iloc[20]),
                 "nitrogen": number(row.iloc[33]),
+                "domesticWastewater": number(row.iloc[3]),
+                "industryWastewater": number(row.iloc[6]),
                 "steam": number(row.iloc[47]),
                 "naturalGas": number(row.iloc[62]),
                 "cityWater": number(row.iloc[74]),
@@ -535,12 +537,17 @@ def read_energy_data():
         row["production"] = production_by_period.get((row["year"], row["month"]), {}).get(
             "total", 0
         )
-        denominator = row["production"]
-        row["steamPerKg"] = number(row["steam"] / denominator) if denominator else 0
-        row["powerPerKg"] = number(row["power"] / denominator) if denominator else 0
-        row["naturalGasPerKg"] = (
-            number(row["naturalGas"] / denominator) if denominator else 0
-        )
+        denominator = row["production"] * 1000
+        for field in (
+            "power",
+            "naturalGas",
+            "steam",
+            "nitrogen",
+            "domesticWastewater",
+            "industryWastewater",
+            "cityWater",
+        ):
+            row[f"{field}PerKg"] = round(row[field] / denominator, 8) if denominator else 0
     return energy, production
 
 
